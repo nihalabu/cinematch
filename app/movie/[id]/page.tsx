@@ -1,14 +1,15 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Navbar from "@/components/Navbar"
 import ReviewForm from "@/components/ReviewForm"
 import { useAuth } from "@/context/AuthContext"
 import { auth, db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
-import { TMDBMovieDetail, Rating } from "@/types"
-
+import { TMDBMovieDetail, Rating, TMDBMovie } from "@/types"
+import MovieCard from "@/components/MovieCard"
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 
 export default function MovieDetailPage({
@@ -16,8 +17,11 @@ export default function MovieDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const [similarMovies, setSimilarMovies] = useState<TMDBMovie[]>([])
+  const [similarLoading, setSimilarLoading] = useState(true)
   const { id } = use(params)
   const { user } = useAuth()
+  const router = useRouter()
   const [movie, setMovie] = useState<TMDBMovieDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -74,6 +78,23 @@ export default function MovieDetailPage({
     }
     checkUserData()
   }, [user, id])
+  useEffect(() => {
+    if (!id) return
+    const fetchSimilar = async () => {
+      try {
+        const res = await fetch(`/api/movie?similar=${id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setSimilarMovies(Array.isArray(data) ? data : [])
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setSimilarLoading(false)
+      }
+    }
+    fetchSimilar()
+  }, [id])
 
   const toggleWatchlist = async () => {
     if (!user || watchlistLoading) return
@@ -183,7 +204,20 @@ export default function MovieDetailPage({
       )}
 
       <div className="relative z-10 max-w-7xl mx-auto px-8 py-12 animate-fade-in-up">
-        <div className="flex flex-col md:flex-row gap-10">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors duration-300 mb-8 group font-[family-name:var(--font-dm-sans)] text-sm"
+        >
+          <svg
+            className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>        <div className="flex flex-col md:flex-row gap-10">
           {/* Poster */}
           <div className="w-full md:w-[40%] flex-shrink-0">
             <div className="aspect-[2/3] relative rounded-xl overflow-hidden bg-[#141414] glow-red-intense">
@@ -276,11 +310,10 @@ export default function MovieDetailPage({
               <button
                 onClick={toggleWatchlist}
                 disabled={watchlistLoading}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 text-sm flex items-center gap-2 mb-8 font-[family-name:var(--font-dm-sans)] ${
-                  inWatchlist
-                    ? "glass text-white"
-                    : "border-2 border-[#e50914] text-[#e50914] hover:bg-gradient-red hover:text-white hover:border-transparent hover:shadow-[0_0_20px_rgba(229,9,20,0.3)]"
-                } disabled:opacity-50`}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 text-sm flex items-center gap-2 mb-8 font-[family-name:var(--font-dm-sans)] ${inWatchlist
+                  ? "glass text-white"
+                  : "border-2 border-[#e50914] text-[#e50914] hover:bg-gradient-red hover:text-white hover:border-transparent hover:shadow-[0_0_20px_rgba(229,9,20,0.3)]"
+                  } disabled:opacity-50`}
               >
                 {watchlistLoading ? (
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -318,6 +351,38 @@ export default function MovieDetailPage({
               </div>
             )}
           </div>
+        </div>
+        {/* Similar Movies */}
+        <div className="mt-16">
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-10" />
+          <h2 className="text-2xl font-bold tracking-tight text-white font-[family-name:var(--font-playfair)] italic mb-6">
+            More Like This
+          </h2>
+
+          {similarLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-xl overflow-hidden bg-[#141414] animate-pulse">
+                  <div className="aspect-[2/3] bg-[#1f1f1f]" />
+                </div>
+              ))}
+            </div>
+          ) : similarMovies.length === 0 ? (
+            <p className="text-[#525252] text-sm font-[family-name:var(--font-dm-sans)]">
+              No similar movies found.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+              {similarMovies.map((movie, i) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  showWatchlistButton
+                  animationDelay={i * 60}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

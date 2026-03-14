@@ -8,6 +8,7 @@ import {
   fetchSuggestions,
   TMDB_IMAGE_BASE,
 } from "@/lib/tmdb"
+import { TMDBMovie } from "@/types"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -74,6 +75,70 @@ export async function GET(req: NextRequest) {
 
     await docRef.set(cacheData)
     return NextResponse.json(cacheData)
+  }
+  // ── Similar movies ──
+  const similarParam = searchParams.get("similar")
+  if (similarParam) {
+    const tmdbId = parseInt(similarParam, 10)
+    if (isNaN(tmdbId)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
+    }
+
+    const TMDB_KEY = process.env.TMDB_API_KEY
+
+    // Fetch the movie's genres first
+    const detailRes = await fetch(
+      `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=similar`
+    )
+    if (!detailRes.ok) {
+      return NextResponse.json([], { status: 200 })
+    }
+    const detail = await detailRes.json()
+
+    const genreIds: number[] = detail.genres?.map((g: { id: number }) => g.id) ?? []
+
+    // Pull TMDB similar + discover by same genres, then score and merge
+    const similarMovies: TMDBMovie[] = detail.similar?.results ?? []
+
+    // Discover more from the top 2 genres
+    const discoverResults: TMDBMovie[] = []
+    for (const gid of genreIds.slice(0, 2)) {
+      const discRes = await fetch(
+        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${gid}&sort_by=vote_average.desc&vote_count.gte=300&page=1`
+      )
+      if (discRes.ok) {
+        const discData = await discRes.json()
+        discoverResults.push(...(discData.results ?? []))
+      }
+    }
+
+    // Merge, deduplicate, exclude current movie
+    const seen = new Set<number>([tmdbId])
+    const merged: TMDBMovie[] = []
+
+    for (const movie of [...similarMovies, ...discoverResults]) {
+      if (!seen.has(movie.id)) {
+        seen.add(movie.id)
+        merged.push(movie)
+      }
+    }
+
+    // Score: genre overlap + vote_average + vote_count weight
+    const scored = merged
+      .map((movie) => {
+        const movieGenres: number[] = movie.genre_ids ?? []
+        const overlap = movieGenres.filter((g) => genreIds.includes(g)).length
+        const score =
+          overlap * 3 +
+          (movie.vote_average ?? 0) * 0.5 +
+          Math.log10((movie.vote_count ?? 0) + 1) * 0.3
+        return { movie, score }
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map((s) => s.movie)
+
+    return NextResponse.json(scored)
   }
 
   // ── Search by query ──
