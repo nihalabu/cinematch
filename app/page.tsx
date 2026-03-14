@@ -138,10 +138,16 @@ export default function HomePage() {
         }
         if (sortBy === "vote_average.desc") {
           results.sort((a, b) => b.vote_average - a.vote_average)
+        } else if (sortBy === "vote_average.asc") {
+          results.sort((a, b) => a.vote_average - b.vote_average)
         } else if (sortBy === "release_date.desc") {
-          results.sort((a, b) => (b.release_date > a.release_date ? 1 : -1))
+          results.sort((a, b) =>
+            (b.release_date ?? "") > (a.release_date ?? "") ? 1 : -1
+          )
         } else if (sortBy === "release_date.asc") {
-          results.sort((a, b) => (a.release_date > b.release_date ? 1 : -1))
+          results.sort((a, b) =>
+            (a.release_date ?? "") > (b.release_date ?? "") ? 1 : -1
+          )
         }
 
         setMovies(results)
@@ -156,12 +162,24 @@ export default function HomePage() {
   }
 
   const handleApplyFilters = async () => {
+    setShowFilters(false)
     if (activeGenre) {
-      await handleGenreClick(activeGenre)
+      setLoading(true)
+      try {
+        const filterParams = buildFilterParams()
+        const res = await fetch(`/api/movie?genre=${activeGenre}&${filterParams}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMovies(Array.isArray(data) ? data : [])
+        }
+      } catch {
+        setMovies([])
+      } finally {
+        setLoading(false)
+      }
     } else if (searchQuery) {
       await handleSearch(searchQuery)
     }
-    setShowFilters(false)
   }
 
   const handleResetFilters = async () => {

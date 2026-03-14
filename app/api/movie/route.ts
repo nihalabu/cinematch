@@ -31,13 +31,28 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Genre discover ──
+  // ── Genre discover ──
   if (genreParam) {
     const genreId = parseInt(genreParam, 10)
     if (isNaN(genreId)) {
       return NextResponse.json({ error: "Invalid genre ID" }, { status: 400 })
     }
-    const results = await fetchMoviesByGenre(genreId)
-    return NextResponse.json(results)
+    const sortBy = searchParams.get("sort_by") || "popularity.desc"
+    const language = searchParams.get("language") || ""
+    const minRating = parseFloat(searchParams.get("min_rating") || "0")
+
+    const TMDB_KEY = process.env.TMDB_API_KEY
+    const url = new URL("https://api.themoviedb.org/3/discover/movie")
+    url.searchParams.set("api_key", TMDB_KEY || "")
+    url.searchParams.set("with_genres", String(genreId))
+    url.searchParams.set("sort_by", sortBy)
+    url.searchParams.set("vote_count.gte", "200")
+    if (language) url.searchParams.set("with_original_language", language)
+    if (minRating > 0) url.searchParams.set("vote_average.gte", String(minRating))
+
+    const res = await fetch(url.toString())
+    const data = await res.json()
+    return NextResponse.json(data.results ?? [])
   }
 
   // ── Movie detail by TMDB ID — with Firestore caching ──
