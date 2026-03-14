@@ -241,7 +241,7 @@ export default function HomePage() {
       </section>
 
       {/* Results */}
-      <section className="max-w-7xl mx-auto px-8 pb-24">
+      <section className="max-w-7xl mx-auto px-8 pb-24 relative z-0">
         {/* Filter bar — only shown when there are results */}
         {!initialLoading && movies.length > 0 && (
           <div className="pt-16 flex items-center justify-between mb-6 animate-fade-in">
@@ -382,7 +382,7 @@ export default function HomePage() {
                 Trending This Week
               </h2>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 isolation-isolate">
               {movies.map((movie, i) => (
                 <MovieCard
                   key={movie.id}
