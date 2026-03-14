@@ -244,7 +244,7 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-8 pb-24 relative z-0">
         {/* Filter bar — only shown when there are results */}
         {!initialLoading && movies.length > 0 && (
-          <div className="pt-16 flex items-center justify-between mb-6 animate-fade-in">
+          <div className="pt-16 flex items-center justify-between mb-6 animate-fade-in relative z-[9999]">
             <h2 className="text-2xl font-bold tracking-tight text-white font-[family-name:var(--font-playfair)] italic">
               {activeGenre
                 ? `${GENRES.find((g) => g.id === activeGenre)?.name} Movies`
@@ -253,7 +253,7 @@ export default function HomePage() {
                   : "Trending This Week"}
             </h2>
 
-            <div className="relative">
+            <div className="relative z-[9999]">
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 font-[family-name:var(--font-dm-sans)] border ${showFilters || activeFilterCount > 0
