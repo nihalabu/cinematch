@@ -1,62 +1,58 @@
 import { NextRequest, NextResponse } from "next/server"
-import { adminDb } from "@/lib/firebaseAdmin"
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin"
 
-// GET /api/admin/movies — list cached movies from Firestore
-export async function GET(req: NextRequest) {
-  const adminCheck = req.headers.get("x-admin-token")
-  if (adminCheck !== "cinematch-admin-secret") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
+async function verifyAdmin(req: NextRequest) {
+  const authHeader = req.headers.get("Authorization")
+  if (!authHeader?.startsWith("Bearer ")) return null
   try {
-    const limitParam = parseInt(req.nextUrl.searchParams.get("limit") || "50", 10)
-    const moviesRef = adminDb.collection("movies").orderBy("cachedAt", "desc").limit(limitParam)
-    const snapshot = await moviesRef.get()
-
-    const movies = snapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        title: data.title || "Unknown",
-        poster_url: data.poster_url || null,
-        poster_path: data.poster_path || null,
-        backdrop_url: data.backdrop_url || null,
-        vote_average: data.vote_average || 0,
-        vote_count: data.vote_count || 0,
-        release_date: data.release_date || "",
-        overview: data.overview || "",
-        genres: data.genres || [],
-        genre_ids: data.genre_ids || [],
-        runtime: data.runtime || 0,
-        original_language: data.original_language || "",
-        cachedAt: data.cachedAt?.toDate?.()?.toISOString?.() || "",
-      }
-    })
-
-    return NextResponse.json({ movies })
-  } catch (error) {
-    console.error("Error listing movies:", error)
-    return NextResponse.json({ error: "Failed to list movies" }, { status: 500 })
+    const token = authHeader.split("Bearer ")[1]
+    const decoded = await adminAuth.verifyIdToken(token)
+    const userDoc = await adminDb.collection("users").doc(decoded.uid).get()
+    if (userDoc.data()?.role !== "admin") return null
+    return decoded.uid
+  } catch {
+    return null
   }
 }
 
-// DELETE /api/admin/movies — delete a cached movie record
-export async function DELETE(req: NextRequest) {
-  const adminCheck = req.headers.get("x-admin-token")
-  if (adminCheck !== "cinematch-admin-secret") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function GET(req: NextRequest) {
+  const uid = await verifyAdmin(req)
+  if (!uid) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  try {
+    const moviesSnap = await adminDb
+      .collection("movies")
+      .orderBy("cachedAt", "desc")
+      .limit(50)
+      .get()
+
+    const movies = moviesSnap.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        title: data.title || "—",
+        poster_url: data.poster_url || null,
+        vote_average: data.vote_average || 0,
+        original_language: data.original_language || "—",
+        cachedAt: data.cachedAt?.toDate?.()?.toISOString() || null,
+      }
+    })
+    return NextResponse.json(movies)
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch movies" }, { status: 500 })
   }
+}
+
+export async function DELETE(req: NextRequest) {
+  const uid = await verifyAdmin(req)
+  if (!uid) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   try {
     const { movieId } = await req.json()
-    if (!movieId) {
-      return NextResponse.json({ error: "movieId is required" }, { status: 400 })
-    }
-
-    await adminDb.collection("movies").doc(String(movieId)).delete()
+    if (!movieId) return NextResponse.json({ error: "movieId required" }, { status: 400 })
+    await adminDb.collection("movies").doc(movieId).delete()
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Error deleting movie:", error)
+  } catch {
     return NextResponse.json({ error: "Failed to delete movie" }, { status: 500 })
   }
 }

@@ -1,55 +1,54 @@
 import { NextRequest, NextResponse } from "next/server"
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin"
 
-// GET /api/admin/stats — dashboard statistics
-export async function GET(req: NextRequest) {
-  const adminCheck = req.headers.get("x-admin-token")
-  if (adminCheck !== "cinematch-admin-secret") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+async function verifyAdmin(req: NextRequest) {
+  const authHeader = req.headers.get("Authorization")
+  if (!authHeader?.startsWith("Bearer ")) return null
+  try {
+    const token = authHeader.split("Bearer ")[1]
+    const decoded = await adminAuth.verifyIdToken(token)
+    const userDoc = await adminDb.collection("users").doc(decoded.uid).get()
+    if (userDoc.data()?.role !== "admin") return null
+    return decoded.uid
+  } catch {
+    return null
   }
+}
+
+export async function GET(req: NextRequest) {
+  const uid = await verifyAdmin(req)
+  if (!uid) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   try {
-    // Count users
-    let totalUsers = 0
-    let pageToken: string | undefined = undefined
-    do {
-      const listResult = await adminAuth.listUsers(1000, pageToken)
-      totalUsers += listResult.users.length
-      pageToken = listResult.pageToken
-    } while (pageToken)
+    const usersSnap = await adminDb.collection("users").get()
+    const moviesSnap = await adminDb.collection("movies").get()
 
-    // Count cached movies
-    const moviesSnapshot = await adminDb.collection("movies").count().get()
-    const totalMovies = moviesSnapshot.data().count
+    let totalRatings = 0
+    let totalWatchlist = 0
 
-    // Count reviews
-    const ratingsRef = adminDb.collection("ratings")
-    const userDocs = await ratingsRef.listDocuments()
-    let totalReviews = 0
-    for (const userDoc of userDocs) {
-      const uid = userDoc.id
-      const subSnapshot = await adminDb.collection("ratings").doc(uid).collection(uid).count().get()
-      totalReviews += subSnapshot.data().count
-    }
+    for (const userDoc of usersSnap.docs) {
+      const ratingsSnap = await adminDb
+        .collection("ratings")
+        .doc(userDoc.id)
+        .collection(userDoc.id)
+        .get()
+      totalRatings += ratingsSnap.size
 
-    // Count watchlist items
-    const watchlistRef = adminDb.collection("watchlist")
-    const watchlistUserDocs = await watchlistRef.listDocuments()
-    let totalWatchlistItems = 0
-    for (const userDoc of watchlistUserDocs) {
-      const uid = userDoc.id
-      const subSnapshot = await adminDb.collection("watchlist").doc(uid).collection(uid).count().get()
-      totalWatchlistItems += subSnapshot.data().count
+      const watchlistSnap = await adminDb
+        .collection("watchlist")
+        .doc(userDoc.id)
+        .collection(userDoc.id)
+        .get()
+      totalWatchlist += watchlistSnap.size
     }
 
     return NextResponse.json({
-      totalUsers,
-      totalMovies,
-      totalReviews,
-      totalWatchlistItems,
+      totalUsers: usersSnap.size,
+      totalMoviesCached: moviesSnap.size,
+      totalRatings,
+      totalWatchlist,
     })
-  } catch (error) {
-    console.error("Error fetching stats:", error)
+  } catch {
     return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 })
   }
 }

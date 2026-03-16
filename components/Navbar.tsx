@@ -27,10 +27,26 @@ export default function Navbar() {
     router.push("/login")
   }
 
+    const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return }
+    const checkAdmin = async () => {
+      try {
+        const { db } = await import("@/lib/firebase")
+        const { doc, getDoc } = await import("firebase/firestore")
+        const userDoc = await getDoc(doc(db, "users", user.uid))
+        setIsAdmin(userDoc.data()?.role === "admin")
+      } catch { setIsAdmin(false) }
+    }
+    checkAdmin()
+  }, [user])
+
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/watchlist", label: "Watchlist" },
     { href: "/recommendations", label: "Recommendations" },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ]
 
   return (
