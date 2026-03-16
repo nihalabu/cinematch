@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
 
   // ── Trending movies ──
   // ── Trending movies ──
+  // ── Trending movies ──
   if (trendingParam) {
     const sortBy = searchParams.get("sort_by") || "popularity.desc"
     const language = searchParams.get("language") || ""
@@ -34,21 +35,45 @@ export async function GET(req: NextRequest) {
 
     if (hasFilters) {
       const TMDB_KEY = process.env.TMDB_API_KEY
-      const url = new URL("https://api.themoviedb.org/3/discover/movie")
-      url.searchParams.set("api_key", TMDB_KEY || "")
-      url.searchParams.set("sort_by", sortBy)
-      url.searchParams.set("vote_count.gte", "200")
-      if (language) url.searchParams.set("with_original_language", language)
-      if (minRating > 0) url.searchParams.set("vote_average.gte", String(minRating))
+      const isNonEnglish = language && language !== "en"
+      const voteThreshold = isNonEnglish ? "5" : "200"
 
-      const res = await fetch(url.toString())
-      const data = await res.json()
-      return NextResponse.json(data.results ?? [])
+      const fetchPage = async (page: number) => {
+        const url = new URL("https://api.themoviedb.org/3/discover/movie")
+        url.searchParams.set("api_key", TMDB_KEY || "")
+        url.searchParams.set("sort_by", sortBy)
+        url.searchParams.set("vote_count.gte", voteThreshold)
+        url.searchParams.set("page", String(page))
+        if (language) url.searchParams.set("with_original_language", language)
+        if (minRating > 0) url.searchParams.set("vote_average.gte", String(minRating))
+        const res = await fetch(url.toString())
+        const data = await res.json()
+        return data.results ?? []
+      }
+
+      const pagesToFetch = isNonEnglish ? 4 : 1
+      const pages = await Promise.all(
+        Array.from({ length: pagesToFetch }, (_, i) => fetchPage(i + 1))
+      )
+
+      const seen = new Set<number>()
+      const merged = []
+      for (const page of pages) {
+        for (const movie of page) {
+          if (!seen.has(movie.id)) {
+            seen.add(movie.id)
+            merged.push(movie)
+          }
+        }
+      }
+
+      return NextResponse.json(merged)
     }
 
     const results = await fetchTrending()
     return NextResponse.json(results)
   }
+  // ── Genre discover ──
   // ── Genre discover ──
   // ── Genre discover ──
   if (genreParam) {
@@ -61,19 +86,41 @@ export async function GET(req: NextRequest) {
     const minRating = parseFloat(searchParams.get("min_rating") || "0")
 
     const TMDB_KEY = process.env.TMDB_API_KEY
-    const url = new URL("https://api.themoviedb.org/3/discover/movie")
-    url.searchParams.set("api_key", TMDB_KEY || "")
-    url.searchParams.set("with_genres", String(genreId))
-    url.searchParams.set("sort_by", sortBy)
-    url.searchParams.set("vote_count.gte", "200")
-    if (language) url.searchParams.set("with_original_language", language)
-    if (minRating > 0) url.searchParams.set("vote_average.gte", String(minRating))
+    const isNonEnglish = language && language !== "en"
+    const voteThreshold = isNonEnglish ? "5" : "200"
 
-    const res = await fetch(url.toString())
-    const data = await res.json()
-    return NextResponse.json(data.results ?? [])
+    const fetchPage = async (page: number) => {
+      const url = new URL("https://api.themoviedb.org/3/discover/movie")
+      url.searchParams.set("api_key", TMDB_KEY || "")
+      url.searchParams.set("with_genres", String(genreId))
+      url.searchParams.set("sort_by", sortBy)
+      url.searchParams.set("vote_count.gte", voteThreshold)
+      url.searchParams.set("page", String(page))
+      if (language) url.searchParams.set("with_original_language", language)
+      if (minRating > 0) url.searchParams.set("vote_average.gte", String(minRating))
+      const res = await fetch(url.toString())
+      const data = await res.json()
+      return data.results ?? []
+    }
+
+    const pagesToFetch = isNonEnglish ? 4 : 1
+    const pages = await Promise.all(
+      Array.from({ length: pagesToFetch }, (_, i) => fetchPage(i + 1))
+    )
+
+    const seen = new Set<number>()
+    const merged = []
+    for (const page of pages) {
+      for (const movie of page) {
+        if (!seen.has(movie.id)) {
+          seen.add(movie.id)
+          merged.push(movie)
+        }
+      }
+    }
+
+    return NextResponse.json(merged)
   }
-
   // ── Movie detail by TMDB ID — with Firestore caching ──
   if (idParam) {
     const tmdbId = parseInt(idParam, 10)
