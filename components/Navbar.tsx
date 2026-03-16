@@ -42,13 +42,16 @@ export default function Navbar() {
     checkAdmin()
   }, [user])
 
-  const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/watchlist", label: "Watchlist" },
-    { href: "/recommendations", label: "Recommendations" },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
-  ]
-
+  const navLinks = isAdmin
+    ? [
+        { href: "/", label: "Home" },
+        { href: "/admin", label: "Admin" },
+      ]
+    : [
+        { href: "/", label: "Home" },
+        { href: "/watchlist", label: "Watchlist" },
+        { href: "/recommendations", label: "Recommendations" },
+      ]
   return (
     <nav
       className={`h-16 sticky top-0 z-50 animate-fade-in transition-all duration-300 ${
