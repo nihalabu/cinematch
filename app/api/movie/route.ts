@@ -116,6 +116,10 @@ export async function GET(req: NextRequest) {
     const similarMovies: TMDBMovie[] = detail.similar?.results ?? []
 
     // Discover more from the top 2 genres
+    const originalLanguage: string = detail.original_language ?? ""
+    const productionCountries: string[] = detail.production_countries?.map(
+      (c: { iso_3166_1: string }) => c.iso_3166_1
+    ) ?? []
     const discoverResults: TMDBMovie[] = []
     for (const gid of genreIds.slice(0, 2)) {
       const discRes = await fetch(
@@ -124,6 +128,28 @@ export async function GET(req: NextRequest) {
       if (discRes.ok) {
         const discData = await discRes.json()
         discoverResults.push(...(discData.results ?? []))
+      }
+    }
+
+    // If movie is non-English, also fetch same-language movies for that genre
+    if (originalLanguage && originalLanguage !== "en") {
+      for (const gid of genreIds.slice(0, 2)) {
+        const langRes = await fetch(
+          `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${gid}&with_original_language=${originalLanguage}&sort_by=vote_average.desc&vote_count.gte=50&page=1`
+        )
+        if (langRes.ok) {
+          const langData = await langRes.json()
+          discoverResults.push(...(langData.results ?? []))
+        }
+      }
+
+      // Also fetch popular movies in that language regardless of genre
+      const popularLangRes = await fetch(
+        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_original_language=${originalLanguage}&sort_by=popularity.desc&vote_count.gte=50&page=1`
+      )
+      if (popularLangRes.ok) {
+        const popularLangData = await popularLangRes.json()
+        discoverResults.push(...(popularLangData.results ?? []))
       }
     }
 
@@ -138,15 +164,27 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Score: genre overlap + vote_average + vote_count weight
+    // Score: genr
     const scored = merged
       .map((movie) => {
         const movieGenres: number[] = movie.genre_ids ?? []
-        const overlap = movieGenres.filter((g) => genreIds.includes(g)).length
+        const genreOverlap = movieGenres.filter((g) => genreIds.includes(g)).length
+
+        // Language match — strong boost if same language
+        const languageMatch = movie.original_language === originalLanguage ? 4 : 0
+
+        // Country match — moderate boost
+        const movieCountries: string[] = (movie as TMDBMovie & { production_countries?: { iso_3166_1: string }[] })
+          .production_countries?.map((c) => c.iso_3166_1) ?? []
+        const countryMatch = movieCountries.some((c) => productionCountries.includes(c)) ? 2 : 0
+
         const score =
-          overlap * 3 +
+          genreOverlap * 3 +
+          languageMatch +
+          countryMatch +
           (movie.vote_average ?? 0) * 0.5 +
           Math.log10((movie.vote_count ?? 0) + 1) * 0.3
+
         return { movie, score }
       })
       .sort((a, b) => b.score - a.score)
