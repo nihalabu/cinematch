@@ -32,15 +32,34 @@ export async function GET(
       .orderBy("timestamp", "desc")
       .get()
 
-    const ratings = ratingsSnap.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        movieId: doc.id,
-        score: data.score || 0,
-        review: data.review || "",
-        timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
-      }
-    })
+    const ratings = await Promise.all(
+      ratingsSnap.docs.map(async (doc) => {
+        const data = doc.data()
+        const movieId = doc.id
+
+        // Look up movie title from Firestore cache
+        let title = null
+        let poster = null
+        try {
+          const movieDoc = await adminDb.collection("movies").doc(movieId).get()
+          if (movieDoc.exists) {
+            title = movieDoc.data()?.title || null
+            poster = movieDoc.data()?.poster_url || null
+          }
+        } catch {
+          // silently fail
+        }
+
+        return {
+          movieId,
+          title,
+          poster,
+          score: data.score || 0,
+          review: data.review || "",
+          timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+        }
+      })
+    )
 
     const watchlistSnap = await adminDb
       .collection("watchlist")

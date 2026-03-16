@@ -25,11 +25,30 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Trending movies ──
+  // ── Trending movies ──
   if (trendingParam) {
+    const sortBy = searchParams.get("sort_by") || "popularity.desc"
+    const language = searchParams.get("language") || ""
+    const minRating = parseFloat(searchParams.get("min_rating") || "0")
+    const hasFilters = language || minRating > 0 || sortBy !== "popularity.desc"
+
+    if (hasFilters) {
+      const TMDB_KEY = process.env.TMDB_API_KEY
+      const url = new URL("https://api.themoviedb.org/3/discover/movie")
+      url.searchParams.set("api_key", TMDB_KEY || "")
+      url.searchParams.set("sort_by", sortBy)
+      url.searchParams.set("vote_count.gte", "200")
+      if (language) url.searchParams.set("with_original_language", language)
+      if (minRating > 0) url.searchParams.set("vote_average.gte", String(minRating))
+
+      const res = await fetch(url.toString())
+      const data = await res.json()
+      return NextResponse.json(data.results ?? [])
+    }
+
     const results = await fetchTrending()
     return NextResponse.json(results)
   }
-
   // ── Genre discover ──
   // ── Genre discover ──
   if (genreParam) {

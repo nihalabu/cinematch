@@ -16,6 +16,8 @@ type UserRow = {
 
 type RatingDetail = {
   movieId: string
+  title: string | null
+  poster: string | null
   score: number
   review: string
   timestamp: string | null
@@ -233,11 +235,10 @@ export default function AdminUsers() {
                       <p className="text-white font-medium text-sm font-[family-name:var(--font-dm-sans)] truncate">
                         {u.name}
                       </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                        u.role === "admin"
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${u.role === "admin"
                           ? "bg-[#e50914]/15 text-[#e50914] border border-[#e50914]/30"
                           : "bg-white/5 text-[#a3a3a3] border border-white/10"
-                      }`}>
+                        }`}>
                         {u.role}
                       </span>
                     </div>
@@ -299,21 +300,19 @@ export default function AdminUsers() {
                       <div className="flex gap-1 mb-4">
                         <button
                           onClick={() => setActiveDetailTab((prev) => ({ ...prev, [u.uid]: "ratings" }))}
-                          className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 font-[family-name:var(--font-dm-sans)] ${
-                            activeDetailTab[u.uid] === "ratings"
+                          className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 font-[family-name:var(--font-dm-sans)] ${activeDetailTab[u.uid] === "ratings"
                               ? "bg-[#e50914] text-white"
                               : "bg-white/5 text-[#a3a3a3] hover:text-white"
-                          }`}
+                            }`}
                         >
                           Ratings ({userDetails[u.uid].ratings.length})
                         </button>
                         <button
                           onClick={() => setActiveDetailTab((prev) => ({ ...prev, [u.uid]: "watchlist" }))}
-                          className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 font-[family-name:var(--font-dm-sans)] ${
-                            activeDetailTab[u.uid] === "watchlist"
+                          className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 font-[family-name:var(--font-dm-sans)] ${activeDetailTab[u.uid] === "watchlist"
                               ? "bg-[#e50914] text-white"
                               : "bg-white/5 text-[#a3a3a3] hover:text-white"
-                          }`}
+                            }`}
                         >
                           Watchlist ({userDetails[u.uid].watchlist.length})
                         </button>
@@ -327,25 +326,34 @@ export default function AdminUsers() {
                           ) : (
                             userDetails[u.uid].ratings.map((r) => (
                               <div key={r.movieId} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-4 py-3 border border-white/5">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-[#f59e0b] text-xs font-semibold font-[family-name:var(--font-dm-sans)]">
-                                      {"★".repeat(r.score)}{"☆".repeat(5 - r.score)}
-                                    </span>
-                                    <span className="text-[#525252] text-xs font-[family-name:var(--font-dm-sans)]">
-                                      Movie ID: {r.movieId}
-                                    </span>
-                                    {r.timestamp && (
-                                      <span className="text-[#525252] text-xs hidden md:block font-[family-name:var(--font-dm-sans)]">
-                                        {new Date(r.timestamp).toLocaleDateString()}
-                                      </span>
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <div className="w-8 h-11 relative flex-shrink-0 rounded overflow-hidden bg-[#141414]">
+                                    {r.poster ? (
+                                      <Image src={r.poster} alt={r.title || ""} fill className="object-cover" sizes="32px" />
+                                    ) : (
+                                      <div className="w-full h-full bg-[#1f1f1f]" />
                                     )}
                                   </div>
-                                  {r.review && (
-                                    <p className="text-[#a3a3a3] text-xs mt-1 truncate font-[family-name:var(--font-dm-sans)]">
-                                      &ldquo;{r.review}&rdquo;
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-white text-xs font-medium truncate font-[family-name:var(--font-dm-sans)]">
+                                      {r.title || `Movie ${r.movieId}`}
                                     </p>
-                                  )}
+                                    <div className="flex items-center gap-3 mt-0.5">
+                                      <span className="text-[#f59e0b] text-xs font-semibold font-[family-name:var(--font-dm-sans)]">
+                                        {"★".repeat(r.score)}{"☆".repeat(5 - r.score)}
+                                      </span>
+                                      {r.timestamp && (
+                                        <span className="text-[#525252] text-xs font-[family-name:var(--font-dm-sans)]">
+                                          {new Date(r.timestamp).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {r.review && (
+                                      <p className="text-[#a3a3a3] text-xs mt-1 truncate font-[family-name:var(--font-dm-sans)]">
+                                        &ldquo;{r.review}&rdquo;
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                                 <button
                                   onClick={() => handleDeleteRating(u.uid, r.movieId)}

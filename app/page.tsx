@@ -163,11 +163,15 @@ export default function HomePage() {
 
   const handleApplyFilters = async () => {
     setShowFilters(false)
-    if (activeGenre) {
+
+    if (!activeGenre && !searchQuery) {
       setLoading(true)
       try {
-        const filterParams = buildFilterParams()
-        const res = await fetch(`/api/movie?genre=${activeGenre}&${filterParams}`)
+        const params = new URLSearchParams()
+        if (sortBy) params.set("sort_by", sortBy)
+        if (language) params.set("language", language)
+        if (minRating > 0) params.set("min_rating", String(minRating))
+        const res = await fetch(`/api/movie?trending=1&${params.toString()}`)
         if (res.ok) {
           const data = await res.json()
           setMovies(Array.isArray(data) ? data : [])
@@ -177,11 +181,64 @@ export default function HomePage() {
       } finally {
         setLoading(false)
       }
-    } else if (searchQuery) {
-      await handleSearch(searchQuery)
+      return
+    }
+
+    if (activeGenre) {
+      setLoading(true)
+      try {
+        const params = new URLSearchParams()
+        if (sortBy) params.set("sort_by", sortBy)
+        if (language) params.set("language", language)
+        if (minRating > 0) params.set("min_rating", String(minRating))
+        const res = await fetch(`/api/movie?genre=${activeGenre}&${params.toString()}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMovies(Array.isArray(data) ? data : [])
+        }
+      } catch {
+        setMovies([])
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    if (searchQuery) {
+      setLoading(true)
+      try {
+        const res = await fetch(`/api/movie?q=${encodeURIComponent(searchQuery)}`)
+        if (res.ok) {
+          const data = await res.json()
+          let results: TMDBMovie[] = Array.isArray(data) ? data : []
+          if (minRating > 0) {
+            results = results.filter((m) => m.vote_average >= minRating)
+          }
+          if (language) {
+            results = results.filter((m) => m.original_language === language)
+          }
+          if (sortBy === "vote_average.desc") {
+            results.sort((a, b) => b.vote_average - a.vote_average)
+          } else if (sortBy === "vote_average.asc") {
+            results.sort((a, b) => a.vote_average - b.vote_average)
+          } else if (sortBy === "release_date.desc") {
+            results.sort((a, b) =>
+              (b.release_date ?? "") > (a.release_date ?? "") ? 1 : -1
+            )
+          } else if (sortBy === "release_date.asc") {
+            results.sort((a, b) =>
+              (a.release_date ?? "") > (b.release_date ?? "") ? 1 : -1
+            )
+          }
+          setMovies(results)
+        }
+      } catch {
+        setMovies([])
+      } finally {
+        setLoading(false)
+      }
     }
   }
-
   const handleResetFilters = async () => {
     setSortBy("popularity.desc")
     setLanguage("")
