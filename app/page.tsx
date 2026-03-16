@@ -280,7 +280,7 @@ export default function HomePage() {
         <div className="absolute bottom-32 right-[10%] w-96 h-96 bg-[#e50914]/5 rounded-full blur-3xl animate-float-reverse pointer-events-none" />
         <div className="absolute top-[40%] right-[30%] w-48 h-48 bg-[#e50914]/[0.08] rounded-full blur-3xl animate-float-slow pointer-events-none" />
 
-        <div className="relative z-10 text-center px-8 animate-fade-in-up">
+        <div className="relative z-20 text-center px-8 animate-fade-in-up">
           <h1 className="font-[family-name:var(--font-playfair)] italic mb-4">
             <span className="text-white text-5xl md:text-6xl font-bold block">Find Your Next</span>
             <span className="text-[#e50914] text-5xl md:text-6xl font-extrabold block mt-2 text-glow-red">
@@ -296,21 +296,23 @@ export default function HomePage() {
         {/* Genre Pills */}
         <div
           className="relative z-10 mt-16 px-8 w-full max-w-3xl animate-fade-in-up"
-          style={{ animationDelay: "200ms" }}
+          style={{ animationDelay: "200ms", pointerEvents: "none" }}
         >
-          <div className="flex flex-wrap justify-center gap-3">
-            {GENRES.map((genre) => (
-              <button
-                key={genre.id}
-                onClick={() => handleGenreClick(genre.id)}
-                className={`rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 font-[family-name:var(--font-dm-sans)] ${activeGenre === genre.id
+          <div style={{ pointerEvents: "auto" }}>
+            <div className="flex flex-wrap justify-center gap-3">
+              {GENRES.map((genre) => (
+                <button
+                  key={genre.id}
+                  onClick={() => handleGenreClick(genre.id)}
+                  className={`rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 font-[family-name:var(--font-dm-sans)] ${activeGenre === genre.id
                     ? "bg-[#e50914] text-white border border-[#e50914] shadow-[0_0_20px_rgba(229,9,20,0.3)]"
                     : "bg-white/5 backdrop-blur-sm text-[#a3a3a3] border border-white/10 hover:bg-white/10 hover:border-[#1f1f1f] hover:text-white"
-                  }`}
-              >
-                {genre.name}
-              </button>
-            ))}
+                    }`}
+                >
+                  {genre.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -332,8 +334,8 @@ export default function HomePage() {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 font-[family-name:var(--font-dm-sans)] border ${showFilters || activeFilterCount > 0
-                    ? "bg-[#e50914]/10 border-[#e50914]/40 text-white"
-                    : "bg-white/5 border-white/10 text-[#a3a3a3] hover:text-white hover:bg-white/10"
+                  ? "bg-[#e50914]/10 border-[#e50914]/40 text-white"
+                  : "bg-white/5 border-white/10 text-[#a3a3a3] hover:text-white hover:bg-white/10"
                   }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,8 +363,8 @@ export default function HomePage() {
                           key={opt.value}
                           onClick={() => setSortBy(opt.value)}
                           className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 font-[family-name:var(--font-dm-sans)] ${sortBy === opt.value
-                              ? "bg-[#e50914] text-white"
-                              : "bg-white/5 text-[#a3a3a3] hover:bg-white/10 hover:text-white"
+                            ? "bg-[#e50914] text-white"
+                            : "bg-white/5 text-[#a3a3a3] hover:bg-white/10 hover:text-white"
                             }`}
                         >
                           {opt.label}
