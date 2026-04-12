@@ -260,56 +260,54 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(scored)
   }
   // ── Public reviews for a movie ──
-const reviewsParam = searchParams.get("reviews")
-if (reviewsParam) {
-  const usersSnap = await adminDb.collection("ratings").listDocuments()
-  
-  const reviews: {
-    uid: string
-    score: number
-    review: string
-    timestamp: string | null
-    displayName: string | null
-  }[] = []
+  const reviewsParam = searchParams.get("reviews")
+  if (reviewsParam) {
+    const usersSnap = await adminDb.collection("ratings").listDocuments()
 
-  for (const userDoc of usersSnap) {
-    const uid = userDoc.id
-    const ratingDoc = await adminDb
-      .collection("ratings")
-      .doc(uid)
-      .collection(uid)
-      .doc(reviewsParam)
-      .get()
+    const reviews: {
+      uid: string
+      score: number
+      review: string
+      timestamp: string | null
+      displayName: string | null
+    }[] = []
 
-    if (ratingDoc.exists) {
-      const data = ratingDoc.data()!
-      if (!data.score) continue
+    for (const userDoc of usersSnap) {
+      const uid = userDoc.id
+      const ratingDoc = await adminDb
+        .collection("ratings")
+        .doc(uid)
+        .collection(uid)
+        .doc(reviewsParam)
+        .get()
 
-      // Fetch display name from users collection
-      let displayName: string | null = null
-      try {
+      if (ratingDoc.exists) {
+        const data = ratingDoc.data()!
+        if (!data.score) continue
+
+        // Fetch display name from users collection
+        let displayName: string | null = null
         const userProfileDoc = await adminDb.collection("users").doc(uid).get()
-        displayName = userProfileDoc.data()?.name || null
-      } catch {
-        // silently fail
+        if (userProfileDoc.exists) {
+          displayName = userProfileDoc.data()?.name || null
+        }
+
+        reviews.push({
+          uid,
+          score: data.score,
+          review: data.review || "",
+          timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+          displayName,
+        })
       }
-
-      reviews.push({
-        uid,
-        score: data.score,
-        review: data.review || "",
-        timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
-        displayName,
-      })
     }
+
+    reviews.sort((a, b) =>
+      new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+    )
+
+    return NextResponse.json(reviews)
   }
-
-  reviews.sort((a, b) =>
-    new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
-  )
-
-  return NextResponse.json(reviews)
-}
 
   // ── Search by query ──
   if (query) {
