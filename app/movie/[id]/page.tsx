@@ -10,6 +10,7 @@ import { auth, db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
 import { TMDBMovieDetail, Rating, TMDBMovie } from "@/types"
 import MovieCard from "@/components/MovieCard"
+import PublicReviews from "@/components/PublicReviews"
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 
 export default function MovieDetailPage({
@@ -19,6 +20,7 @@ export default function MovieDetailPage({
 }) {
   const [similarMovies, setSimilarMovies] = useState<TMDBMovie[]>([])
   const [similarLoading, setSimilarLoading] = useState(true)
+  const [reviewRefresh, setReviewRefresh] = useState(0)
   const { id } = use(params)
   const { user } = useAuth()
   const router = useRouter()
@@ -342,14 +344,29 @@ export default function MovieDetailPage({
             {/* Review form */}
             {user && movie && (
               <div>
-                <h2 className="text-white text-xl font-bold mb-4 font-[family-name:var(--font-playfair)]">Your Review</h2>
+                <h2 className="text-white text-xl font-bold mb-4 font-[family-name:var(--font-playfair)]">
+                  Your Review
+                </h2>
                 <ReviewForm
                   movieId={id}
                   existingRating={existingRating}
                   genreIds={movie.genres?.map((g) => g.id) || movie.genre_ids || []}
+                  onSuccess={() => setReviewRefresh((n) => n + 1)}
                 />
               </div>
             )}
+
+            {/* All public reviews */}
+            <div className="mt-10">
+              <h2 className="text-white text-xl font-bold mb-4 font-[family-name:var(--font-playfair)]">
+                Community Reviews
+              </h2>
+              <PublicReviews
+                movieId={id}
+                currentUserId={user?.uid}
+                refreshTrigger={reviewRefresh}
+              />
+            </div>
           </div>
         </div>
         {/* Similar Movies */}

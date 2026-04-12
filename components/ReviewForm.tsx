@@ -9,9 +9,11 @@ type ReviewFormProps = {
   movieId: string
   existingRating?: Rating
   genreIds?: number[]
+  onSuccess?: () => void   // 
 }
 
-export default function ReviewForm({ movieId, existingRating, genreIds = [] }: ReviewFormProps) {
+
+export default function ReviewForm({ movieId, existingRating, genreIds = [],onSuccess  }: ReviewFormProps) {
   const [score, setScore] = useState(existingRating?.score || 0)
   const [review, setReview] = useState(existingRating?.review || "")
   const [loading, setLoading] = useState(false)
@@ -47,6 +49,7 @@ export default function ReviewForm({ movieId, existingRating, genreIds = [] }: R
 
       if (res.ok) {
         setSuccess("Review saved!")
+        onSuccess?.()  
       } else {
         const data = await res.json()
         setError(data.error || "Failed to save review")

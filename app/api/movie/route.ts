@@ -259,6 +259,57 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(scored)
   }
+  // ── Public reviews for a movie ──
+const reviewsParam = searchParams.get("reviews")
+if (reviewsParam) {
+  const usersSnap = await adminDb.collection("ratings").listDocuments()
+  
+  const reviews: {
+    uid: string
+    score: number
+    review: string
+    timestamp: string | null
+    displayName: string | null
+  }[] = []
+
+  for (const userDoc of usersSnap) {
+    const uid = userDoc.id
+    const ratingDoc = await adminDb
+      .collection("ratings")
+      .doc(uid)
+      .collection(uid)
+      .doc(reviewsParam)
+      .get()
+
+    if (ratingDoc.exists) {
+      const data = ratingDoc.data()!
+      if (!data.score) continue
+
+      // Fetch display name from users collection
+      let displayName: string | null = null
+      try {
+        const userProfileDoc = await adminDb.collection("users").doc(uid).get()
+        displayName = userProfileDoc.data()?.name || null
+      } catch {
+        // silently fail
+      }
+
+      reviews.push({
+        uid,
+        score: data.score,
+        review: data.review || "",
+        timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+        displayName,
+      })
+    }
+  }
+
+  reviews.sort((a, b) =>
+    new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+  )
+
+  return NextResponse.json(reviews)
+}
 
   // ── Search by query ──
   if (query) {
